@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Runtime logs (created by the app; never committed)
+query_log.jsonl
+unanswered.json
+
+# Local env / secrets — never commit an API key
+.env

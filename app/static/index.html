@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SOP Copilot — Shop Floor</title>
+<style>
+  :root { --bg:#f4f6f8; --card:#fff; --ink:#1a1a1a; --muted:#5b6470; --line:#dfe4ea;
+          --accent:#0b6e4f; --accent-soft:#e3f2ec; --warn:#8a5a00; --warn-bg:#fff3cd;
+          --danger:#8f1d1d; --danger-bg:#fdecea; --radius:12px; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+         background:var(--bg); color:var(--ink); line-height:1.5; }
+  header { background:var(--accent); color:#fff; padding:14px 16px; position:sticky; top:0; z-index:10; }
+  header h1 { margin:0; font-size:20px; }
+  header p { margin:2px 0 0; font-size:13px; opacity:.9; }
+  main { max-width:720px; margin:0 auto; padding:16px 12px 48px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+          padding:16px; margin-bottom:14px; }
+  label { font-weight:600; display:block; margin-bottom:6px; }
+  textarea, input[type=text] { width:100%; font-size:17px; padding:12px; border:1.5px solid var(--line);
+          border-radius:10px; font-family:inherit; }
+  textarea { min-height:64px; resize:vertical; }
+  button { font-size:17px; padding:12px 20px; border:none; border-radius:10px; cursor:pointer; }
+  .btn-primary { background:var(--accent); color:#fff; width:100%; margin-top:10px; font-weight:700; }
+  .btn-primary:disabled { opacity:.55; }
+  .btn-secondary { background:#eef1f4; color:var(--ink); width:100%; margin-top:10px; }
+  .chips { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+  .chip { background:var(--accent-soft); color:var(--accent); border:1px solid #bcdccb;
+          border-radius:999px; padding:8px 12px; font-size:14px; cursor:pointer; text-align:left; }
+  .answer { white-space:pre-wrap; font-size:17px; }
+  .notfound { background:var(--warn-bg); border:1px solid #f0d48a; border-radius:10px; padding:12px; }
+  .safety { background:var(--danger-bg); border:1px solid #f2b8b5; border-radius:10px; padding:12px;
+            color:var(--danger); font-weight:600; margin-bottom:12px; }
+  .meta { font-size:13px; color:var(--muted); margin-top:10px; }
+  .src { border-top:1px solid var(--line); margin-top:12px; padding-top:10px; }
+  .src h3 { margin:0 0 4px; font-size:15px; }
+  .src .rev { font-size:13px; color:var(--muted); }
+  .badge { display:inline-block; font-size:12px; font-weight:700; border-radius:999px; padding:2px 8px; }
+  .badge-sup { background:#fdecea; color:var(--danger); }
+  .badge-cur { background:var(--accent-soft); color:var(--accent); }
+  .src p { font-size:14px; color:#333; margin:6px 0 0; }
+  .docrow { display:flex; justify-content:space-between; gap:8px; padding:8px 0;
+           border-bottom:1px solid var(--line); font-size:15px; }
+  .docrow:last-child { border-bottom:none; }
+  .docrow small { color:var(--muted); display:block; font-size:13px; }
+  details { font-size:15px; }
+  summary { cursor:pointer; font-weight:600; }
+  .unans { font-size:15px; padding:8px 0; border-bottom:1px solid var(--line); }
+  .unans small { color:var(--muted); display:block; font-size:13px; }
+  footer { text-align:center; color:var(--muted); font-size:13px; padding:0 16px 32px; }
+  .hidden { display:none; }
+  .spinner { color:var(--muted); font-size:15px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>SOP Copilot</h1>
+  <p>Answers from the plant SOPs — with the source shown. The SOP is the authority, not this app.</p>
+</header>
+<main>
+  <div class="card">
+    <label for="q">Ask a question</label>
+    <textarea id="q" placeholder="e.g. What does alarm AL-104 mean and what should I do?"></textarea>
+    <button class="btn-primary" id="askBtn" onclick="ask()">Ask</button>
+    <div class="chips" id="chips"></div>
+  </div>
+
+  <div class="card hidden" id="resultCard">
+    <div id="safetyBox" class="safety hidden"></div>
+    <div id="answerBox"></div>
+    <div id="escalateBox" class="hidden">
+      <button class="btn-secondary" id="escBtn" onclick="escalate()">Send this question to my supervisor</button>
+      <p class="meta" id="escNote"></p>
+    </div>
+    <div class="meta" id="answerMeta"></div>
+    <div id="sourcesBox"></div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin:0 0 8px;font-size:17px;">Documents in this copilot</h2>
+    <div id="docsBox"><span class="spinner">Loading…</span></div>
+  </div>
+
+  <div class="card">
+    <details>
+      <summary>Questions sent to a supervisor (<span id="unansCount">0</span>)</summary>
+      <div id="unansBox" style="margin-top:8px;"><span class="spinner">Loading…</span></div>
+    </details>
+  </div>
+</main>
+<footer>Answers come only from the provided SOPs. If an answer is not in the documents, the app says so — it never guesses.</footer>
+
+<script>
+const SAMPLE_QUESTIONS = [
+  "What is the recommended coolant concentration for the TX-200 CNC turning centre?",
+  "The machine is showing alarm AL-104. What does it mean and what should the operator do?",
+  "Who is allowed to remove a lockout lock from a machine?",
+  "What is the outer diameter tolerance for the BH-220 bearing housing?",
+  "How often should spindle runout be checked, and who does it?"
+];
+let lastQuestion = "";
+
+function el(id){ return document.getElementById(id); }
+
+async function loadDocs(){
+  const r = await fetch("/api/documents");
+  const docs = await r.json();
+  el("docsBox").innerHTML = docs.map(d =>
+    `<div class="docrow"><div><strong>${d.doc_id}</strong> — ${d.title}<small>Effective ${d.effective_date || "—"} · ${d.pages} page(s)</small></div>
+     <div>${d.superseded
+        ? `<span class="badge badge-sup">SUPERSEDED by ${d.superseded_by}</span>`
+        : `<span class="badge badge-cur">${d.revision} · current</span>`}</div></div>`
+  ).join("");
+  loadUnanswered();
+}
+
+async function loadUnanswered(){
+  const r = await fetch("/api/unanswered");
+  const items = await r.json();
+  el("unansCount").textContent = items.length;
+  el("unansBox").innerHTML = items.length ? items.slice().reverse().map(u =>
+    `<div class="unans">${escapeHtml(u.question)}<small>Routed to ${escapeHtml(u.routed_to)} · ${escapeHtml(u.ts)} · ${escapeHtml(u.status)}</small></div>`
+  ).join("") : "<p class='meta'>None yet.</p>";
+}
+
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+async function ask(){
+  const q = el("q").value.trim();
+  if(!q) return;
+  lastQuestion = q;
+  el("askBtn").disabled = true;
+  el("askBtn").textContent = "Searching the SOPs…";
+  el("resultCard").classList.remove("hidden");
+  el("answerBox").innerHTML = "<p class='spinner'>Searching the SOPs…</p>";
+  el("sourcesBox").innerHTML = "";
+  el("safetyBox").classList.add("hidden");
+  el("escalateBox").classList.add("hidden");
+  el("answerMeta").textContent = "";
+  try {
+    const r = await fetch("/api/ask", {method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({question: q})});
+    const data = await r.json();
+    el("askBtn").disabled = false;
+    el("askBtn").textContent = "Ask";
+    if(data.safety_critical){
+      el("safetyBox").classList.remove("hidden");
+      el("safetyBox").textContent = "Safety-critical procedure — verify with the Safety Officer / an authorised person before acting. The SOP is the authority, not this app.";
+    }
+    if(data.found){
+      const extractive = data.mode.indexOf("extractive") !== -1;
+      el("answerBox").innerHTML = `<div class="answer">${escapeHtml(data.answer)}</div>` +
+        (extractive ? `<p class="meta" style="color:#8a5a00;">Extractive mode — no AI key set (or the AI service was unreachable). This is the most relevant passage from the SOPs, not a generated answer. Please read it and check the source before acting.</p>` : "");
+      el("answerMeta").textContent = `Confidence ${data.confidence} · mode: ${data.mode}`;
+    } else {
+      el("answerBox").innerHTML = `<div class="notfound"><strong>${escapeHtml(data.answer)}</strong><br>Nothing in the provided SOPs answers this. Do not guess — send it to a supervisor instead.</div>`;
+      el("escalateBox").classList.remove("hidden");
+      el("escNote").textContent = "";
+      el("answerMeta").textContent = `Best match score ${data.confidence} (below the threshold) · mode: ${data.mode}`;
+    }
+    el("sourcesBox").innerHTML = data.sources && data.sources.length
+      ? "<h3 style='margin:16px 0 4px;font-size:15px;'>Sources</h3>" + data.sources.map(s =>
+        `<div class="src"><h3>${escapeHtml(s.doc_id)} ${escapeHtml(s.revision)} <span class="rev">· page ${s.page} · score ${s.score}</span> ${s.superseded ? `<span class="badge badge-sup">SUPERSEDED by ${escapeHtml(s.superseded_by)}</span>` : `<span class="badge badge-cur">current</span>`}</h3><p>${escapeHtml(s.excerpt)}</p></div>`
+      ).join("") : "";
+  } catch(e){
+    el("askBtn").disabled = false;
+    el("askBtn").textContent = "Ask";
+    el("answerBox").innerHTML = "<div class='notfound'><strong>Could not reach the app.</strong><br>Check you are on the same Wi-Fi as the laptop running the copilot, then try again.</div>";
+  }
+}
+
+async function escalate(){
+  el("escBtn").disabled = true;
+  const r = await fetch("/api/escalate", {method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({question: lastQuestion, context: "Asked on the shop floor; the copilot could not find the answer in the SOPs."})});
+  const data = await r.json();
+  el("escNote").textContent = data.logged
+    ? `Logged — routed to ${data.routed_to}. They will see this question. If this is urgent, call or radio them directly; this log does not guarantee an instant reply.`
+    : "Could not log the question. Please tell your supervisor directly.";
+  el("escBtn").disabled = false;
+  loadUnanswered();
+}
+
+el("chips").innerHTML = SAMPLE_QUESTIONS.map((q,i) =>
+  `<button class="chip" onclick="document.getElementById('q').value=${JSON.stringify(q)}; ask();">${escapeHtml(q)}</button>`
+).join("");
+el("q").addEventListener("keydown", e => { if(e.key === "Enter" && !e.shiftKey){ e.preventDefault(); ask(); } });
+loadDocs();
+</script>
+</body>
+</html>

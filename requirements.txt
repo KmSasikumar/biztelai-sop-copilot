@@ -1,0 +1,6 @@
+# Shop-floor SOP copilot — dependencies (Python 3.10+)
+# Install:  python -m pip install -r requirements.txt
+fastapi==0.162.2
+uvicorn==0.34.0
+pypdf==6.21.4
+numpy==1.26.4
