@@ -354,8 +354,11 @@ is a claim I can keep.
   states its rule ("draw 5 samples from every lot") initially got a bare "not found" instead of
   an explanation. I fixed it by passing supersession context into retrieval: when a retrieved
   chunk belongs to a document with a superseded revision, the best superseded chunk is included
-  too, so the answer can explain that the old rule was replaced by Rev04. The app now answers
-  from the current revision and says so when an old rule is involved.
+  too, so the answer can explain that the old rule was replaced by Rev04. I also strengthened
+  the generation prompt with an explicit rule — if the question describes a rule that appears
+  only in a superseded passage, explain that it was the old revision and give the current
+  revision's rule instead of saying "not found". The app now answers from the current revision
+  and says so when an old rule is involved.
 - **Gemini rate limiting (HTTP 429) while testing.** Rapid test questions hit the free-tier limit
   and the LLM calls failed. I added retry with backoff (2s, 5s) to the API client, and — more
   importantly — made the fallback conservative: if the LLM call fails, the app returns the

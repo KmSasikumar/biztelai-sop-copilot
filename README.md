@@ -27,9 +27,10 @@ challenge, the improvement I added, and the final reflection.
   (`query_log.jsonl`), so the plant can see what the copilot was asked and where the documents
   are thin.
 - **Works without an API key** — with a Gemini API key you get embedding retrieval + LLM
-  answers; without one, the app falls back to TF-IDF retrieval and returns the best passage
-  verbatim (extractive mode). It also falls back to the passage if the LLM API is temporarily
-  unreachable.
+  answers; without one, the app falls back to TF-IDF retrieval and returns the most relevant
+  passage(s) verbatim (extractive mode, clearly labelled in the UI). If the LLM API is
+  temporarily unreachable, it falls back to the top two retrieved passages instead of failing
+  or guessing — and only when the match is strong; otherwise it says "not found".
 
 ## Documents in this copilot
 

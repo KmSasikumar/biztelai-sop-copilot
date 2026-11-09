@@ -394,6 +394,7 @@ Rules:
 - Give the direct answer first: the value with its unit, the rule, or the step — then stop. Do not lecture and do not add information that is not in the passages.
 - For a procedure, list the steps in order, IN FULL. Never compress a safety step into a summary.
 - If a passage is marked SUPERSEDED, it is an old revision. Answer from the current revision and say the older revision is superseded by it.
+- If the question describes a rule that appears ONLY in a SUPERSEDED passage (the old revision), do NOT say "not found". Explain that that rule was in the old revision, it was superseded by the current revision, and give the current revision's rule instead.
 - If the question is ambiguous, say which interpretation you used in one short clause.
 - Keep the answer short enough to read on a phone while standing on the shop floor.
 
@@ -457,12 +458,16 @@ def answer_question(index: Index, question: str, api_key: str | None) -> dict:
                   file=sys.stderr)
             text = ""
         if not text:
-            # LLM call failed. Only fall back to the retrieved passage when the
+            # LLM call failed. Only fall back to the retrieved passages when the
             # match is strong — otherwise an irrelevant passage would be served
-            # as if it were the answer (worse than saying "not found").
+            # as if it were the answer (worse than saying "not found"). Return
+            # the top two passages: the best match is not always the one that
+            # holds the answer (e.g. a dimensions table can rank just below the
+            # procedure text), and the UI labels this as extractive mode.
             if best_score >= 0.60:
+                top_texts = [c["text"] for c, _ in ranked[:2]]
                 return {
-                    "answer": ranked[0][0]["text"],
+                    "answer": "\n\n---\n\n".join(top_texts),
                     "found": True,
                     "confidence": round(best_score, 3),
                     "mode": mode + "+extractive-fallback",
