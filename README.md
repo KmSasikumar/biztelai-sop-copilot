@@ -171,7 +171,7 @@ All 5 sample questions return correct, sourced answers:
 │   ├── main.py          # FastAPI app + API endpoints
 │   ├── rag.py           # PDF loading, chunking, retrieval, grounded answering
 │   ├── build_index.py   # Pre-build the embeddings index (needs GOOGLE_API_KEY)
-│   ├── index.json       # Pre-built embedding vectors (25 chunks, 3072-dim)
+│   ├── index.json       # Pre-built embedding vectors (21 chunks, 3072-dim)
 │   └── static/index.html# Mobile-first UI
 ├── docs/                # The 4 sample SOP PDFs (+ Sample_Questions.pdf)
 ├── requirements.txt
