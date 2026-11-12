@@ -183,8 +183,11 @@ async function escalate(){
 }
 
 el("chips").innerHTML = SAMPLE_QUESTIONS.map((q,i) =>
-  `<button class="chip" onclick="document.getElementById('q').value=${JSON.stringify(q)}; ask();">${escapeHtml(q)}</button>`
+  `<button class="chip" data-i="${i}">${escapeHtml(q)}</button>`
 ).join("");
+el("chips").querySelectorAll(".chip").forEach((btn) => {
+  btn.addEventListener("click", () => { el("q").value = SAMPLE_QUESTIONS[+btn.dataset.i]; ask(); });
+});
 el("q").addEventListener("keydown", e => { if(e.key === "Enter" && !e.shiftKey){ e.preventDefault(); ask(); } });
 loadDocs();
 </script>
